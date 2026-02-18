@@ -2,24 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Chris Corbett Design | Landscape Architecture</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --brand-beige: #fdfcf9;
+    }
     body {
       font-family: 'Inter', sans-serif;
       scroll-behavior: smooth;
+      background-color: var(--brand-beige);
+      overflow-x: hidden;
     }
     h1, h2, h3, .serif {
-      font-family: 'Cormorant+Garamond', serif;
+      font-family: 'Cormorant Garamond', serif;
     }
     .glass {
-      background: rgba(255, 255, 255, 0.7);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
     
     @keyframes scrollUp {
@@ -33,30 +38,54 @@
     }
 
     .animate-scroll-up {
-      animation: scrollUp 40s linear infinite;
+      animation: scrollUp 50s linear infinite;
     }
     
     .animate-scroll-down {
-      animation: scrollDown 40s linear infinite;
+      animation: scrollDown 50s linear infinite;
     }
 
     .animate-scroll-up:hover, .animate-scroll-down:hover {
       animation-play-state: paused;
     }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--brand-beige);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #cbd5e1;
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 640px) {
+      .animate-scroll-up, .animate-scroll-down {
+        animation-duration: 30s;
+      }
+    }
   </style>
-<script type="importmap">
+  <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.4",
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.468.0?external=react",
+    "@google/genai": "https://esm.sh/@google/genai@1.41.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.574.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.41.0"
+    "react/": "https://esm.sh/react@^19.2.4/"
   }
 }
 </script>
 </head>
-<body class="bg-[#fdfcf9] text-slate-900">
+<body class="text-slate-900">
   <div id="root"></div>
 </body>
 </html>

@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Mic, MicOff, X, MessageCircle, Volume2, Loader2 } from 'lucide-react';
 import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
-import { SYSTEM_INSTRUCTION } from '../constants';
-import { VoiceState } from '../types';
+import { SYSTEM_INSTRUCTION } from '../constants.tsx';
+import { VoiceState } from '../types.ts';
 
 // Manual implementation of encode/decode for raw audio data as per guidelines
 function encode(bytes: Uint8Array) {
@@ -58,18 +58,25 @@ const VoiceAgent: React.FC = () => {
 
   const handleStartConversation = async () => {
     try {
+      const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : '';
+      if (!apiKey) {
+        setError('Studio Key missing. Please check configuration.');
+        setVoiceState(VoiceState.ERROR);
+        return;
+      }
+
       setVoiceState(VoiceState.CONNECTING);
       setError(null);
       setTranscription('');
 
-      // Create new instance before connect to ensure latest API key
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        audioContextRef.current = new AudioCtx({ sampleRate: 16000 });
       }
       if (!outputAudioContextRef.current) {
-        outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        outputAudioContextRef.current = new AudioCtx({ sampleRate: 24000 });
       }
 
       await audioContextRef.current.resume();
@@ -107,7 +114,6 @@ const VoiceAgent: React.FC = () => {
             scriptProcessor.connect(audioContextRef.current!.destination);
           },
           onmessage: async (message: LiveServerMessage) => {
-            // Handle output transcription for better user visibility of "working" state
             if (message.serverContent?.outputTranscription) {
               setTranscription(prev => prev + ' ' + message.serverContent!.outputTranscription!.text);
             }
@@ -129,7 +135,6 @@ const VoiceAgent: React.FC = () => {
                   sourcesRef.current.delete(source);
                   if (sourcesRef.current.size === 0) {
                     setVoiceState(VoiceState.LISTENING);
-                    setTranscription('');
                   }
                 });
 
@@ -140,18 +145,15 @@ const VoiceAgent: React.FC = () => {
             }
 
             if (message.serverContent?.interrupted) {
-              sourcesRef.current.forEach(s => {
-                try { s.stop(); } catch (e) {}
-              });
+              sourcesRef.current.forEach(s => { try { s.stop(); } catch (e) {} });
               sourcesRef.current.clear();
               nextStartTimeRef.current = 0;
               setVoiceState(VoiceState.LISTENING);
-              setTranscription('');
             }
           },
           onerror: (e) => {
-            console.error('Session error:', e);
-            setError('Connection encountered an error. Please retry.');
+            console.error('AI session error:', e);
+            setError('Studio connection lost. Retrying...');
             setVoiceState(VoiceState.ERROR);
           },
           onclose: () => {
@@ -160,7 +162,7 @@ const VoiceAgent: React.FC = () => {
         },
         config: {
           responseModalities: [Modality.AUDIO],
-          outputAudioTranscription: {}, // Enabled for user feedback
+          outputAudioTranscription: {},
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Charon' } }
           },
@@ -171,8 +173,8 @@ const VoiceAgent: React.FC = () => {
       sessionPromiseRef.current = sessionPromise;
 
     } catch (err) {
-      console.error('Failed to start conversation:', err);
-      setError('Microphone access or connection failed.');
+      console.error('Voice setup failed:', err);
+      setError('Microphone access denied or connection failed.');
       setVoiceState(VoiceState.ERROR);
     }
   };
@@ -186,117 +188,111 @@ const VoiceAgent: React.FC = () => {
       micStreamRef.current = null;
     }
 
-    sourcesRef.current.forEach(s => {
-      try { s.stop(); } catch (e) {}
-    });
+    sourcesRef.current.forEach(s => { try { s.stop(); } catch (e) {} });
     sourcesRef.current.clear();
     setVoiceState(VoiceState.IDLE);
     setTranscription('');
   }, []);
 
   useEffect(() => {
-    return () => {
-      stopConversation();
-    };
+    return () => { stopConversation(); };
   }, [stopConversation]);
 
   return (
     <>
-      {/* Floating Toggle Button */}
+      {/* Action Button */}
       <button 
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-8 right-8 z-[100] bg-slate-900 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition active:scale-95 group"
-        aria-label="Open AI Assistant"
+        className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[100] bg-slate-900 text-white w-14 h-14 md:w-18 md:h-18 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all group overflow-hidden"
+        aria-label="Studio Voice Assistant"
       >
-        <MessageCircle className="w-8 h-8 group-hover:rotate-12 transition" />
-        <span className="absolute -top-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-white"></span>
+        <div className="absolute inset-0 bg-gradient-to-tr from-slate-800 to-slate-900 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <MessageCircle className="relative w-7 h-7 md:w-8 md:h-8 group-hover:rotate-12 transition-transform" />
+        <span className="absolute top-1 right-1 md:top-2 md:right-2 bg-green-500 w-3 h-3 rounded-full border-2 border-slate-900"></span>
       </button>
 
       {/* Agent Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onClick={() => setIsOpen(false)}></div>
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setIsOpen(false)}></div>
           
-          <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8 pb-12 text-center">
+          <div className="relative bg-white w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[3rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in duration-500">
+            <div className="p-10 pb-16 text-center">
               <button 
                 onClick={() => setIsOpen(false)}
-                className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full transition"
-                aria-label="Close Assistant"
+                className="absolute top-8 right-8 p-3 hover:bg-slate-50 rounded-full transition-colors"
               >
-                <X className="w-6 h-6 text-slate-400" />
+                <X className="w-5 h-5 text-slate-300 hover:text-slate-900" />
               </button>
 
-              <div className="mt-8 mb-6 relative inline-block">
-                <div className={`w-32 h-32 rounded-full border-4 flex items-center justify-center transition-all duration-500 ${
-                  voiceState === VoiceState.SPEAKING ? 'border-slate-900 scale-105 shadow-xl' : 
-                  voiceState === VoiceState.LISTENING ? 'border-green-500 animate-pulse' : 
+              <div className="mt-6 mb-10 relative inline-block">
+                <div className={`w-32 h-32 md:w-40 md:h-40 rounded-full border-[1px] flex items-center justify-center transition-all duration-700 ${
+                  voiceState === VoiceState.SPEAKING ? 'border-slate-900 scale-105 shadow-2xl' : 
+                  voiceState === VoiceState.LISTENING ? 'border-green-500 shadow-xl animate-pulse' : 
                   'border-slate-100'
                 }`}>
-                  <div className={`w-24 h-24 rounded-full bg-slate-50 flex items-center justify-center transition-colors ${
-                    voiceState === VoiceState.IDLE ? 'text-slate-300' : 'text-slate-900'
+                  <div className={`w-28 h-28 md:w-32 md:h-32 rounded-full bg-slate-50 flex items-center justify-center transition-all ${
+                    voiceState === VoiceState.IDLE ? 'text-slate-200' : 'text-slate-900'
                   }`}>
-                    {voiceState === VoiceState.SPEAKING ? <Volume2 className="w-10 h-10 animate-bounce" /> : <Mic className="w-10 h-10" />}
+                    {voiceState === VoiceState.SPEAKING ? <Volume2 className="w-12 h-12 animate-bounce" /> : <Mic className="w-12 h-12" />}
                   </div>
                 </div>
                 {voiceState === VoiceState.CONNECTING && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/50 rounded-full">
-                    <Loader2 className="w-8 h-8 animate-spin text-slate-900" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-full">
+                    <Loader2 className="w-10 h-10 animate-spin text-slate-900" />
                   </div>
                 )}
               </div>
 
-              <h3 className="text-3xl font-light mb-2">Chris Corbett Studio</h3>
-              <p className="text-slate-400 uppercase tracking-widest text-xs mb-8">AI Design Assistant</p>
+              <div className="space-y-2 mb-10">
+                <h3 className="text-2xl md:text-3xl font-light tracking-tight">Chris Corbett Studio</h3>
+                <p className="text-slate-400 uppercase tracking-[0.3em] text-[10px] font-bold">Design AI Concierge</p>
+              </div>
               
-              <div className="mb-10 min-h-[4rem] px-4">
+              <div className="mb-12 min-h-[5rem] px-4 flex items-center justify-center">
                 {voiceState === VoiceState.IDLE && (
-                  <p className="text-slate-600 leading-relaxed italic">
-                    "Talk to our studio assistant about your landscape vision, project timelines, or design philosophy."
+                  <p className="text-slate-500 text-base font-light italic leading-relaxed">
+                    "Experience our design philosophy first-hand. Inquire about timelines, materials, or our global portfolio."
                   </p>
                 )}
                 {voiceState === VoiceState.LISTENING && (
-                  <p className="text-green-600 font-medium tracking-wide">I'm listening...</p>
+                  <div className="space-y-2">
+                    <p className="text-green-600 font-bold uppercase tracking-[0.2em] text-[10px]">Active Session</p>
+                    <p className="text-slate-400 font-light">The studio is listening...</p>
+                  </div>
                 )}
                 {voiceState === VoiceState.SPEAKING && (
-                  <div className="space-y-2">
-                    <p className="text-slate-900 font-medium">Assistant is responding...</p>
+                  <div className="space-y-3">
+                    <p className="text-slate-900 font-bold uppercase tracking-[0.2em] text-[10px]">Responding</p>
                     {transcription && (
-                      <p className="text-sm text-slate-500 italic line-clamp-2">"{transcription.trim()}"</p>
+                      <p className="text-sm text-slate-400 font-light italic line-clamp-2 max-w-xs mx-auto">"{transcription.trim()}"</p>
                     )}
                   </div>
                 )}
-                {voiceState === VoiceState.CONNECTING && (
-                  <p className="text-slate-400">Establishing secure connection...</p>
-                )}
                 {error && (
-                  <p className="text-red-500 text-sm font-medium">{error}</p>
+                  <p className="text-red-500 text-sm font-medium bg-red-50 px-6 py-3 rounded-full">{error}</p>
                 )}
               </div>
 
-              <div className="flex justify-center space-x-4">
+              <div className="flex justify-center">
                 {voiceState === VoiceState.IDLE ? (
                   <button 
                     onClick={handleStartConversation}
-                    className="flex items-center space-x-3 bg-slate-900 text-white px-10 py-5 rounded-full hover:bg-slate-800 transition shadow-lg active:scale-95"
+                    className="w-full sm:w-auto flex items-center justify-center space-x-3 bg-slate-900 text-white px-12 py-5 rounded-full hover:bg-slate-800 transition shadow-2xl active:scale-95"
                   >
-                    <Mic className="w-5 h-5" />
-                    <span className="font-bold uppercase tracking-widest text-sm">Start Voice Chat</span>
+                    <Mic className="w-4 h-4" />
+                    <span className="font-bold uppercase tracking-[0.2em] text-[10px]">Enter Studio Chat</span>
                   </button>
                 ) : (
                   <button 
                     onClick={stopConversation}
-                    className="flex items-center space-x-3 bg-red-50 text-red-600 border border-red-200 px-10 py-5 rounded-full hover:bg-red-100 transition shadow-sm active:scale-95"
+                    className="w-full sm:w-auto flex items-center justify-center space-x-3 bg-white border border-slate-100 text-slate-400 px-12 py-5 rounded-full hover:bg-slate-50 transition shadow-sm active:scale-95"
                   >
-                    <MicOff className="w-5 h-5" />
-                    <span className="font-bold uppercase tracking-widest text-sm">End Session</span>
+                    <MicOff className="w-4 h-4" />
+                    <span className="font-bold uppercase tracking-[0.2em] text-[10px]">Close Session</span>
                   </button>
                 )}
               </div>
-              
-              <p className="mt-8 text-xs text-slate-400 max-w-xs mx-auto">
-                Powered by Gemini Live API. Conversation is processed in real-time.
-              </p>
             </div>
           </div>
         </div>
