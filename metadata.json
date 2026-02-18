@@ -1,0 +1,7 @@
+{
+  "name": "Corbett Landscape Architecture - Elite Revamp",
+  "description": "A high-end, modern portfolio for Chris Corbett Design featuring an integrated AI Voice Agent for real-time project inquiries.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
