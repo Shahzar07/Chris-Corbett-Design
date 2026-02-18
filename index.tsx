@@ -2,23 +2,15 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 
-const mountNode = document.getElementById('root');
+const container = document.getElementById('root');
 
-if (!mountNode) {
-  console.error("Critical Error: Root element '#root' not found in DOM.");
+if (container) {
+  const root = createRoot(container);
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
 } else {
-  try {
-    const root = createRoot(mountNode);
-    root.render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    );
-  } catch (error) {
-    console.error("Failed to render React application:", error);
-    mountNode.innerHTML = `<div style="padding: 20px; text-align: center; font-family: sans-serif;">
-      <h2>Application Error</h2>
-      <p>Something went wrong during initialization. Please check the console for details.</p>
-    </div>`;
-  }
+  console.error("Failed to find the root element");
 }
