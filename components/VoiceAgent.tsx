@@ -58,7 +58,7 @@ const VoiceAgent: React.FC = () => {
 
   const handleStartConversation = async () => {
     try {
-      const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : '';
+      const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
       if (!apiKey) {
         setError('Studio Key missing. Please check configuration.');
         setVoiceState(VoiceState.ERROR);
